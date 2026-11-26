@@ -6,14 +6,16 @@ from pathlib import Path
 import yaml
 
 from communication.controller_server import ControllerServer
-from models import load_model
 from scenarios import load_track
 
 from control_algorithms.pid import PIDSpeedController
-from controller import AdaptivePurePursuitController, StanleyLateralController, compose_controller
+from controller import AdaptivePurePursuitController, MPCLateralController, StanleyLateralController, compose_controller
+from utilities.model_loader import load_model
 
 
 PROJECT = Path(__file__).resolve().parent
+PURE_PURSUIT_PARAMETERS = ("base_lookahead", "speed_gain", "curvature_gain", "curvature_floor", "min_lookahead")
+PURE_PURSUIT_POSITIVE = ("curvature_floor", "min_lookahead")
 
 
 def _mapping(value, path):
@@ -60,14 +62,17 @@ def load_controller(path):
     match lateral_type:
         case "pure_pursuit":
             lateral_class = AdaptivePurePursuitController
-            required = ("base_lookahead", "speed_gain", "curvature_gain", "curvature_floor", "min_lookahead")
-            positive = ("curvature_floor", "min_lookahead")
+            required = PURE_PURSUIT_PARAMETERS
+            positive = PURE_PURSUIT_POSITIVE
         case "stanley":
             lateral_class = StanleyLateralController
             required = ("k",)
             optional = ("heading_error_weight", "cross_track_error_weight")
+        case "mpc":
+            lateral_class = MPCLateralController
+            required = positive = ("horizon", "timestep", "min_speed")
         case _:
-            raise ValueError(f"lateral.selected must be pure_pursuit or stanley, got {lateral_type!r}")
+            raise ValueError(f"lateral.selected must be pure_pursuit, stanley or mpc, got {lateral_type!r}")
     if lateral_type not in lateral:
         raise ValueError(f"Missing selected controller block lateral.{lateral_type}")
     lateral_parameters = _parameters(
@@ -77,6 +82,12 @@ def load_controller(path):
     longitudinal_controller = PIDSpeedController(**longitudinal_parameters)
     model = load_model(path.parent / config["model_file"])
     track = load_track(path.parent / config["track_file"], yaw_unit=config.get("yaw_unit"))
+    if lateral_type == "mpc":
+        fallback_parameters = _parameters(
+            lateral.get("pure_pursuit"), "lateral.pure_pursuit", PURE_PURSUIT_PARAMETERS,
+            positive=PURE_PURSUIT_POSITIVE,
+        )
+        lateral_parameters["fallback"] = AdaptivePurePursuitController(model, track, **fallback_parameters)
     lateral_controller = lateral_class(model, track, **lateral_parameters)
     controller = compose_controller(
         lateral_controller, longitudinal_controller, model.steering,

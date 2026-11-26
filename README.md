@@ -29,8 +29,9 @@ In the **simulator workspace**, edit `config/simulation.yaml`.
 
 In the **controller workspace**, edit `config/controller.yaml`.
 
-1. Set `model_file` and `track_file` to the same files used by the simulator. Use matching yaw units and set `endpoint` to the simulator's `controller.endpoint`. Relative asset paths resolve from the folder containing each YAML.
-2. Set `lateral.selected` to `pure_pursuit` or `stanley`. Both lateral parameter blocks stay in the YAML. The launcher reads the selected block at startup. Set the PID target speed in m/s under `longitudinal.target_speed`. The supplied defaults are Pure Pursuit and 33.3333 m/s.
+1. Keep the controller model and reference trajectory in `assets/`. The default paths in `config/controller.yaml` are `../assets/model.yaml` and `../assets/track.json`. Paths resolve from the configuration file even when the controller starts from another directory. Supply your own authorized local track JSON at that path and keep private track files out of version control. Use a reference and yaw units compatible with the simulator road, and match the two ZeroMQ controller endpoints.
+2. Edit the controller's model independently of the simulator's plant model. The controller's loader reads vehicle geometry, steering calibration, mass, inertia, CoG position, and tire data from its own model. MPC uses the controller-only `Cf` and `Cr` coefficients. The installed simulator package supplies shared interfaces and track loading. Its model loader and plant model require no prediction metadata.
+3. Set `lateral.selected` to `pure_pursuit`, `stanley`, or `mpc`. The launcher reads the selected block at startup. MPC also reads the Pure Pursuit block for fallback. Set the PID target speed in m/s under `longitudinal.target_speed`.
 
 Keep controller code and tuning in the controller workspace. You can edit the simulator YAML to set up your run without editing simulator source code.
 
@@ -39,6 +40,21 @@ Keep controller code and tuning in the controller workspace. You can edit the si
 Set `lateral.selected: stanley` and tune the settings under `lateral.stanley`. For a first Stanley run, set `longitudinal.target_speed: 10.0`.
 
 Stanley uses the model's CoG-to-front-axle distance to project the front axle onto the spline. It tracks the pose at that projection without lookahead. The two weights scale heading and cross-track corrections independently. Cross-track correction uses a speed floor of 1 m/s. The shared steering bridge applies the vehicle's steering-wheel limits.
+
+### Lateral MPC
+
+With the shared environment active, install optional CasADi and verify its IPOPT plugin.
+
+```sh
+python -m pip install casadi
+python -c 'import casadi; assert casadi.has_nlpsol("ipopt"), "IPOPT unavailable"'
+```
+
+Set `lateral.selected: mpc` and start with `longitudinal.target_speed: 10.0`. The existing `lateral.mpc` settings use a 1 s horizon, 0.05 s prediction timestep, and 8 m/s minimum activation speed. The horizon must be an integer multiple of the timestep. The controller's `assets/model.yaml` supplies positive `tires.Cf` and `tires.Cr`. The provisional values of 15 1/rad scale slip angle and normal load to produce tire force. MPC derives its road-wheel bounds from this same file's steering-wheel limits and ratio.
+
+The predictor uses the CoG pose and shifts chassis-origin velocity to the CoG using yaw rate and the model offset. In the FMU validation, that shift reduced the RMS lateral-velocity discrepancy against CoG position derivatives from 0.0312 to 0.0008 m/s. The forward position derivative was about 5% lower than the reported speed during steady motion. The controller uses the exported velocity without rescaling. Reference sampling starts one Euler step ahead and unwraps yaw relative to the vehicle. The 3 m/s provisional threshold gives an unstable straight-line Euler linearization for this model. The 8 m/s setting provides margin above the approximately 6.82 m/s stability boundary. The startup check rejects unstable combinations of activation speed and timestep at the straight-line operating point.
+
+Pure Pursuit steers while the vehicle is below the activation speed, or when MPC has invalid feedback, an unsuccessful solve, or non-finite steering. PID remains responsible for the pedals. The controller keeps separate fallback counters and logs the first solver failure and every 100th thereafter. IPOPT is constructed anew at each update, so plan initial runs in unpaced mode. The FMU comparison measured occasional calls longer than the 20 ms control period.
 
 ### Longitudinal PID tuning
 
@@ -107,7 +123,7 @@ python -B -m unittest discover -s tests -v
 
 | Symptom | Check |
 | --- | --- |
-| Asset file missing or rejected | Confirm the path exists and resolves from the YAML's directory. Check that both files select the same model and track and use the correct yaw unit. |
+| Asset file missing or rejected | Confirm the path exists under the controller's `assets/` directory and resolves from the YAML's directory. Check that the reference track is compatible with the simulator road and uses the configured yaw unit. |
 | `ModuleNotFoundError` or GUI import error | Activate the simulator's `.venv` in that terminal. Run `python -m pip show unimore-fmu-vehicle-simulation` to verify the installation. Include the `gui` and `plot` extras for those tools. |
 | Startup timeout or address already in use | Check that the controller started within the startup timeout and that both controller endpoints match. If the port is busy, stop the old controller or choose a free port in both files. The GUI uses a separate telemetry endpoint. |
 | Simulator loads the wrong assets or runs locally | Run from the simulator workspace and check that the launch command includes `--config config/simulation.yaml`. Confirm `controller.mode: remote` in that file. |

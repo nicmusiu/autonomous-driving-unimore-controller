@@ -1,13 +1,13 @@
 endpoint: tcp://127.0.0.1:5555
-model_file: ../../autonomous-driving-unimore-sim/config/models/SportsCarUnimore/model.yaml
-track_file: ../../autonomous-driving-unimore-sim/scenarios/IMS/center.json
+model_file: ../assets/model.yaml
+track_file: ../assets/track.json
 yaw_unit: rad
 
 lateral:
-  selected: stanley
+  selected: mpc
   # pure pursuit lateral controller params
   pure_pursuit:
-    base_lookahead: 10.0
+    base_lookahead: 8.0
     speed_gain: 0.05
     curvature_gain: 0.0001
     curvature_floor: 0.01
@@ -17,6 +17,11 @@ lateral:
     k: 1.0
     heading_error_weight: 1.0
     cross_track_error_weight: 1.0
+  # mpc lateral controller params
+  mpc:
+    horizon: 1.0
+    timestep: 0.05
+    min_speed: 8.0
 
 longitudinal:
   target_speed: 33.3333 # 120 kph

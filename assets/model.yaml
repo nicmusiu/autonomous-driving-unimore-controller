@@ -37,9 +37,12 @@ reference_points:
 # Steering-wheel to road-wheel ratio [1] and configured command limits [rad].
 steering:
   ratio: 22.12
-  command_min: -0.01
-  command_max: 0.01
+  command_min: -6.0
+  command_max: +6.0
 
 # Unloaded tire radius [m].
 tires:
   unloaded_radius: 0.3234
+  # Provisional load-normalized cornering stiffness [1/rad].
+  Cf: 15.0
+  Cr: 15.0

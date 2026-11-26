@@ -143,7 +143,19 @@ class ControllerConfigurationTests(TestCase):
     def test_inactive_blocks_are_ignored(self):
         expected = self.commands()
         self.config["lateral"]["stanley"] = "invalid block"
+        self.config["lateral"]["mpc"] = "invalid block"
         self.assertEqual(self.commands(), expected)
+        self.config["lateral"]["stanley"] = {"k": 1.0}
+        self.config["lateral"]["selected"] = "stanley"
+        self.assertTrue(self.commands())
+
+    def test_selects_mpc_with_existing_pure_pursuit_fallback(self):
+        self.config["lateral"]["selected"] = "mpc"
+        self.config["lateral"]["mpc"] = dict(horizon=1.0, timestep=0.05, min_speed=8.0)
+        with patch("main.MPCLateralController") as constructor:
+            self.load()
+        self.assertEqual(constructor.call_args.kwargs["min_speed"], 8.0)
+        self.assertTrue(callable(constructor.call_args.kwargs["fallback"].compute))
 
     def test_unknown_selection_and_missing_selected_block(self):
         lateral = self.config["lateral"]
