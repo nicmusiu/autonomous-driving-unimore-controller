@@ -66,7 +66,7 @@ def load_model(path):
             raise ValueError("steering command limits must be increasing and include zero")
         tires = dict(_section(data, "tires"))
         tires["unloaded_radius"] = _number(tires.get("unloaded_radius"), "tires.unloaded_radius", positive=True)
-        for key in ("Cf", "Cr"):
+        for key in ("Kf", "Kr"):
             value = tires.get(key)
             tires[key] = None if value is None else _number(value, f"tires.{key}", positive=True)
         return SimpleNamespace(name=name, geometry=geometry, mass_properties=mass,

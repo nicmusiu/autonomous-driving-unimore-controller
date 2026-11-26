@@ -21,8 +21,8 @@ def casadi_model(sim, dt):
     alpha_r = - (speed_lat - sim.l_r * yaw_rate) / speed_long
     Fzf = Fz * sim.l_r / sim.l_wb
     Fzr = Fz * sim.l_f / sim.l_wb
-    Fyf = alpha_f * sim.Cf * Fzf
-    Fyr = alpha_r * sim.Cr * Fzr
+    Fyf = alpha_f * sim.Kf * Fzf
+    Fyr = alpha_r * sim.Kr * Fzr
 
     # ODE right hand side
     sxdot    = speed_long*cos(yaw) - speed_lat*sin(yaw)  # vx

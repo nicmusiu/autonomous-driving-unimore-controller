@@ -40,9 +40,18 @@ steering:
   command_min: -6.0
   command_max: +6.0
 
-# Unloaded tire radius [m].
 tires:
-  unloaded_radius: 0.3234
+  unloaded_radius: 0.3234 # Unloaded tire radius [m].
   # Provisional load-normalized cornering stiffness [1/rad].
-  Cf: 15.0
-  Cr: 15.0
+  Kf: 12.6
+  Kr: 11.7
+  # load-normalized pacejka front coefficients
+  Bf: 11.7
+  Cf: 1.27
+  Df: 0.85
+  Ef: -0.69
+  # load-normalized pacejka rear coefficients
+  Br: 8.24
+  Cr: 1.89
+  Dr: 0.75
+  Er: 0.42

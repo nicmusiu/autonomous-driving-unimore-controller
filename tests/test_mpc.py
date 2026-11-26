@@ -25,17 +25,22 @@ class ControllerModelTests(TestCase):
         return load_model(self.path)
 
     def test_reads_independent_controller_tire_metadata(self):
-        self.data["tires"].update(Cf=16, Cr=14, future_parameter=3)
+        self.data["tires"].update(Kf=16, Kr=14, Cf=1.27, Cr=1.89, Ef=-0.69)
         model = self.load()
-        self.assertEqual((model.tires.Cf, model.tires.Cr, model.tires.future_parameter), (16.0, 14.0, 3))
+        self.assertEqual((model.tires.Kf, model.tires.Kr), (16.0, 14.0))
+        self.assertEqual((model.tires.Cf, model.tires.Cr, model.tires.Ef), (1.27, 1.89, -0.69))
+
+    def test_pacejka_coefficients_are_optional(self):
+        self.data["tires"] = {"unloaded_radius": 0.3234, "Kf": 15, "Kr": 15}
+        self.assertEqual(self.load().tires.Kr, 15.0)
 
     def test_validates_optional_stiffness(self):
-        self.data["tires"].pop("Cf", None)
-        self.assertIsNone(self.load().tires.Cf)
+        self.data["tires"].pop("Kf", None)
+        self.assertIsNone(self.load().tires.Kf)
         for value in (False, 0, -1, nan, inf):
             with self.subTest(value=value):
-                self.data["tires"]["Cf"] = value
-                with self.assertRaisesRegex(ValueError, r"tires\.Cf must be finite and positive"):
+                self.data["tires"]["Kf"] = value
+                with self.assertRaisesRegex(ValueError, r"tires\.Kf must be finite and positive"):
                     self.load()
 
 
@@ -48,7 +53,7 @@ class MPCLateralTests(TestCase):
         self.model = SimpleNamespace(
             geometry=SimpleNamespace(lf=1.3, lr=1.4, wheelbase=2.7),
             mass_properties=SimpleNamespace(mass=1500, Izz=1600),
-            tires=SimpleNamespace(Cf=15.0, Cr=14.0),
+            tires=SimpleNamespace(Kf=15.0, Kr=14.0, Cf=1.27, Cr=1.89),
             steering=SteeringParameters(20.0, -4.0, 6.0),
             reference_points=SimpleNamespace(center_of_mass=(-1.3, -0.1, 0), chassis_origin=(0, 0, 0)),
         )
@@ -69,7 +74,7 @@ class MPCLateralTests(TestCase):
     def test_model_state_bounds_and_finite_steering(self):
         parameters, timestep = self.algorithm.casadi_model.call_args.args
         self.assertEqual(vars(parameters), dict(mass=1500, I_z=1600, l_f=1.3, l_r=1.4,
-                                               l_wb=2.7, Cf=15.0, Cr=14.0))
+                                               l_wb=2.7, Kf=15.0, Kr=14.0))
         self.assertEqual(timestep, 0.05)
         result = self.controller.compute(0.0, self.feedback())
         self.assertIs(type(result), float)
@@ -119,10 +124,10 @@ class MPCLateralTests(TestCase):
         for settings in (dict(horizon=0.11), dict(timestep=0), dict(min_speed=inf)):
             with self.subTest(settings=settings), self.assertRaises(ValueError):
                 self.make_controller(**settings)
-        self.model.tires.Cr = None
-        with self.assertRaisesRegex(ValueError, "tires.Cf and tires.Cr"):
+        self.model.tires.Kr = None
+        with self.assertRaisesRegex(ValueError, "tires.Kf and tires.Kr"):
             self.make_controller()
-        self.model.tires.Cr = 15
+        self.model.tires.Kr = 15
         with self.assertRaisesRegex(ValueError, "Euler model is unstable"):
             self.make_controller(min_speed=3.0)
         self.casadi.has_nlpsol.return_value = False

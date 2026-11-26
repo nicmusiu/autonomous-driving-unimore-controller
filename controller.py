@@ -131,13 +131,13 @@ class MPCLateralController:
         self.timestep = timestep
         self.min_speed = min_speed
         self.fallback = fallback
-        cf, cr = model.tires.Cf, model.tires.Cr
-        if any(not _finite(value) or value <= 0 for value in (cf, cr)):
-            raise ValueError("MPC requires finite positive model tires.Cf and tires.Cr (1/rad)")
+        kf, kr = model.tires.Kf, model.tires.Kr
+        if any(not _finite(value) or value <= 0 for value in (kf, kr)):
+            raise ValueError("MPC requires finite positive model tires.Kf and tires.Kr (1/rad)")
         geometry, mass = model.geometry, model.mass_properties
         self.parameters = SimpleNamespace(
             mass=mass.mass, I_z=mass.Izz, l_f=geometry.lf, l_r=geometry.lr,
-            l_wb=geometry.wheelbase, Cf=cf, Cr=cr,
+            l_wb=geometry.wheelbase, Kf=kf, Kr=kr,
         )
         self._check_euler_activation()
         steering = model.steering
@@ -164,8 +164,8 @@ class MPCLateralController:
     def _check_euler_activation(self):
         # Linearize lateral velocity and yaw rate about straight motion.
         p = self.parameters
-        front = p.Cf * p.mass * 9.81 * p.l_r / p.l_wb
-        rear = p.Cr * p.mass * 9.81 * p.l_f / p.l_wb
+        front = p.Kf * p.mass * 9.81 * p.l_r / p.l_wb
+        rear = p.Kr * p.mass * 9.81 * p.l_f / p.l_wb
         moment = rear * p.l_r - front * p.l_f
         v = self.min_speed
         dt = self.timestep
