@@ -1,6 +1,6 @@
 endpoint: tcp://127.0.0.1:5555
 model_file: ../assets/model.yaml
-track_file: ../assets/track.json
+track_file: ../../autonomous-driving-unimore-sim/scenarios/IMS/center.json
 yaw_unit: rad
 
 lateral:
