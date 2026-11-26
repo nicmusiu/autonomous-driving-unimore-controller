@@ -1,0 +1,45 @@
+# Vehicle model name.
+name: SportsCarUnimore
+
+# Nominal wheelbase and track widths, plus longitudinal CoM distances [m].
+geometry:
+  wheelbase: 2.7
+  lf: 1.362439
+  lr: 1.337574
+  front_track: 1.55
+  rear_track: 1.55
+
+# Masses [kg] and yaw inertia about the total CoM [kg·m²].
+mass_properties:
+  mass: 1593.121
+  chassis_mass: 1200.0
+  Izz: 1565.782
+
+# Chassis-local XYZ [m]. Axes point forward, left and up.
+reference_points:
+  chassis_origin:
+  - 0.0
+  - 0.0
+  - 0.0
+  center_of_mass:
+  - -1.362429
+  - -0.022757
+  - 0.011207
+  front_axle:
+  - 0.0
+  - 0.0
+  - 0.0
+  rear_axle:
+  - -2.7
+  - 0.0
+  - 0.0
+
+# Steering-wheel to road-wheel ratio [1] and configured command limits [rad].
+steering:
+  ratio: 22.12
+  command_min: -0.01
+  command_max: 0.01
+
+# Unloaded tire radius [m].
+tires:
+  unloaded_radius: 0.3234
